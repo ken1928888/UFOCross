@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>UFO Cross — 飞碟过关</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #04040e;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #fff;
+      overflow: hidden;
+      user-select: none; -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #gameWrapper {
+      display: flex; flex-direction: column; align-items: center;
+      margin-top: 6px;
+    }
+
+    /* ─── HUD ─── */
+    #hud {
+      width: 480px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 14px;
+      background: rgba(4, 12, 36, 0.95);
+      border: 1px solid rgba(0, 160, 255, 0.28);
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      flex-shrink: 0;
+    }
+    .hud-lives { font-size: 18px; letter-spacing: -3px; min-width: 70px; }
+    .hud-center { text-align: center; }
+    .hud-level { font-size: 11px; color: #00ffaa; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .hud-score { font-size: 18px; color: #ffdd00; font-weight: 700; }
+    .hud-timer { font-size: 14px; font-weight: 700; min-width: 60px; text-align: right; }
+
+    /* ─── Canvas wrapper ─── */
+    #canvasWrap {
+      position: relative; line-height: 0;
+    }
+
+    canvas {
+      display: block;
+      border: 1px solid rgba(0, 160, 255, 0.28);
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+    }
+
+    /* ─── Overlay ─── */
+    #overlay {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: rgba(2, 4, 18, 0.88);
+      border-radius: 0 0 6px 6px;
+      z-index: 20;
+    }
+    #overlay.hidden { display: none; }
+
+    .ov-title {
+      font-size: 40px; font-weight: 800;
+      text-shadow: 0 0 24px currentColor;
+      margin-bottom: 6px;
+    }
+    .ov-sub { font-size: 15px; color: #8899bb; margin: 4px 0; text-align: center; max-width: 340px; }
+
+    .btn-row { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 22px; }
+    .btn {
+      padding: 11px 36px; font-size: 16px; font-weight: 700;
+      border: 2px solid; border-radius: 8px;
+      cursor: pointer; min-width: 180px; text-align: center;
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+    .btn-blue {
+      background: linear-gradient(135deg, #003080, #0055cc);
+      border-color: #0088ff; color: #fff;
+      text-shadow: 0 0 8px #0088ff88;
+    }
+    .btn-blue:hover { transform: scale(1.04); box-shadow: 0 0 18px rgba(0,136,255,.4); }
+    .btn-purple {
+      background: linear-gradient(135deg, #2d0055, #550090);
+      border-color: #9944cc; color: #fff;
+      text-shadow: 0 0 8px #9944cc88;
+    }
+    .btn-purple:hover { transform: scale(1.04); box-shadow: 0 0 18px rgba(153,68,204,.4); }
+
+    /* ─── D-pad ─── */
+    #dpad {
+      display: none; margin-top: 10px;
+      grid-template: 56px 56px 56px / 56px 56px 56px; gap: 5px;
+    }
+    .dp {
+      background: rgba(0, 80, 180, 0.35);
+      border: 2px solid rgba(0, 140, 255, 0.35);
+      border-radius: 10px; color: #fff; font-size: 22px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; touch-action: manipulation;
+    }
+    .dp:active { background: rgba(0, 120, 240, 0.7); }
+    .dp-empty { background: transparent !important; border-color: transparent !important; pointer-events: none; }
+
+    @media (max-width: 500px) {
+      #hud { width: 100vw; }
+      canvas { width: 100vw; height: auto; }
+      #dpad { display: grid; }
+    }
+    @media (hover: none) and (pointer: coarse) {
+      #dpad { display: grid; }
+    }
+  </style>
+</head>
+<body>
+<div id="gameWrapper">
+  <div id="hud">
+    <span class="hud-lives" id="livesEl">❤️❤️❤️</span>
+    <div class="hud-center">
+      <div class="hud-level" id="levelEl">第 1 关</div>
+      <div class="hud-score" id="scoreEl">0</div>
+    </div>
+    <span class="hud-timer" id="timerEl" style="color:#ff9944">⏱ 60</span>
+  </div>
+
+  <div id="canvasWrap">
+    <canvas id="canvas" width="480" height="640"></canvas>
+    <div id="overlay">
+      <div class="ov-title" id="ovTitle" style="color:#00ccff">🛸 UFO Cross</div>
+      <div class="ov-sub" id="ovSub1">飞碟过关</div>
+      <div class="ov-sub" id="ovSub2"></div>
+      <div class="btn-row" id="ovBtns"></div>
+    </div>
+  </div>
+</div>
+
+<div id="dpad">
+  <div class="dp dp-empty"></div>
+  <div class="dp" id="dpUp">▲</div>
+  <div class="dp dp-empty"></div>
+  <div class="dp" id="dpLeft">◀</div>
+  <div class="dp dp-empty"></div>
+  <div class="dp" id="dpRight">▶</div>
+  <div class="dp dp-empty"></div>
+  <div class="dp" id="dpDown">▼</div>
+  <div class="dp dp-empty"></div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════════
+const CW = 480, CH = 640;
+const COLS = 9, ROWS = 11;
+const CELL_W = CW / COLS;   // ≈ 53.3
+const CELL_H = CH / ROWS;   // ≈ 58.2
+const NUM_GOALS = 5;
+const GOAL_W = CW / NUM_GOALS; // 96
+
+const OBS_W = { fighter: 44, cruiser: 68, asteroid: 34 };
+const OBS_H = { fighter: 22, cruiser: 28, asteroid: 34 };
+const PLAYER_RADIUS     = 12;   // collision hitbox radius (px)
+const OBS_HITBOX_SCALE  = 0.42; // fraction of obstacle half-size used for collisions
+const SWIPE_THRESHOLD   = 18;   // minimum px to register a swipe
+
+// ═══════════════════════════════════════════════
+//  LEVEL DEFINITIONS
+// ═══════════════════════════════════════════════
+// lane: { kind, dir (+1 right / -1 left), speed (px/frame@60fps), count, spacing (gap between obs centres) }
+const LEVELS = [
+  {
+    id: 1, name: '第1关 — 初探宇宙', timeLimit: 60,
+    desc: '宇宙旅行起点，小心缓慢飞行的飞船！',
+    rows: [
+      { type: 'goal' },
+      { type: 'road', lane: { kind: 'fighter',  dir:  1, speed: 1.4, count: 2, spacing: 170 } },
+      { type: 'road', lane: { kind: 'asteroid', dir: -1, speed: 1.2, count: 2, spacing: 190 } },
+      { type: 'safe' },
+      { type: 'road', lane: { kind: 'cruiser',  dir:  1, speed: 1.0, count: 2, spacing: 240 } },
+      { type: 'road', lane: { kind: 'fighter',  dir: -1, speed: 1.3, count: 2, spacing: 180 } },
+      { type: 'safe' },
+      { type: 'road', lane: { kind: 'asteroid', dir:  1, speed: 1.1, count: 2, spacing: 200 } },
+      { type: 'road', lane: { kind: 'fighter',  dir: -1, speed: 0.9, count: 1, spacing: 400 } },
+      { type: 'safe' },
+      { type: 'safe' },
+    ],
+  },
+  {
+    id: 2, name: '第2关 — 星际加速', timeLimit: 55,
+    desc: '飞船速度提升，反应要更快！',
+    rows: [
+      { type: 'goal' },
+      { type: 'road', lane: { kind: 'fighter',  dir:  1, speed: 2.2, count: 3, spacing: 145 } },
+      { type: 'road', lane: { kind: 'asteroid', dir: -1, speed: 2.0, count: 3, spacing: 155 } },
+      { type: 'road', lane: { kind: 'cruiser',  dir:  1, speed: 1.6, count: 2, spacing: 210 } },
+      { type: 'safe' },
+      { type: 'road', lane: { kind: 'fighter',  dir: -1, speed: 2.1, count: 3, spacing: 150 } },
+      { type: 'road', lane: { kind: 'asteroid', dir:  1, speed: 1.8, count: 3, spacing: 160 } },
+      { type: 'road', lane: { kind: 'cruiser',  dir: -1, speed: 1.4, count: 2, spacing: 220 } },
+      { type: 'safe' },
+      { type: 'road', lane: { kind: 'fighter',  dir:  1, speed: 1.5, count: 2, spacing: 190 } },
+      { type: 'safe' },
+    ],
+  },
+  {
+    id: 3, name: '第3关 — 小行星带', timeLimit: 50,
+    desc: '密集的小行星群，寻找那一线生机！',
+    rows: [
+      { type: 'goal' },
+      { type: 'road', lane: { kind: 'asteroid', dir:  1, speed: 2.8, count: 4, spacing: 122 } },
+      { type: 'road', lane: { kind: 'fighter',  dir: -1, speed: 2.6, count: 4, spacing: 126 } },
+      { type: 'road', lane: { kind: 'cruiser',  dir:  1, speed: 2.0, count: 3, spacing: 180 } },
+      { type: 'road', lane: { kind: 'asteroid', dir: -1, speed: 2.4, count: 4, spacing: 128 } },
+      { type: 'safe' },
+      { type: 'road', lane: { kind: 'fighter',  dir:  1, speed: 2.5, count: 4, spacing: 124 } },
+      { type: 'road', lane: { kind: 'cruiser',  dir: -1, speed: 2.2, count: 3, spacing: 175 } },
+      { type: 'road', lane: { kind: 'asteroid', dir:  1, speed: 2.6, count: 4, spacing: 120 } },
+      { type: 'road', lane: { kind: 'fighter',  dir: -1, speed: 2.0, count: 3, spacing: 150 } },
+      { type: 'safe' },
+    ],
+  },
+  {
+    id: 4, name: '第4关 — 超高速穿越', timeLimit: 45,
+    desc: '极速飞行！稍有不慎便会陨落！',
+    rows: [
+      { type: 'goal' },
+      { type: 'road', lane: { kind: 'fighter',  dir:  1, speed: 3.5, count: 5, spacing: 100 } },
+      { type: 'road', lane: { kind: 'cruiser',  dir: -1, speed: 3.0, count: 4, spacing: 136 } },
+      { type: 'road', lane: { kind: 'asteroid', dir:  1, speed: 3.3, count: 5, spacing: 106 } },
+      { type: 'road', lane: { kind: 'fighter',  dir: -1, speed: 3.4, count: 5, spacing: 102 } },
+      { type: 'road', lane: { kind: 'cruiser',  dir:  1, speed: 2.8, count: 4, spacing: 140 } },
+      { type: 'safe' },
+      { type: 'road', lane: { kind: 'asteroid', dir: -1, speed: 3.2, count: 5, spacing: 108 } },
+      { type: 'road', lane: { kind: 'fighter',  dir:  1, speed: 3.1, count: 5, spacing: 110 } },
+      { type: 'road', lane: { kind: 'cruiser',  dir: -1, speed: 2.6, count: 4, spacing: 145 } },
+      { type: 'safe' },
+    ],
+  },
+  {
+    id: 5, name: '第5关 — 终极决战', timeLimit: 40,
+    desc: '终极挑战！证明你是最强的飞碟驾驶员！',
+    rows: [
+      { type: 'goal' },
+      { type: 'road', lane: { kind: 'fighter',  dir:  1, speed: 4.2, count: 6, spacing: 88 } },
+      { type: 'road', lane: { kind: 'cruiser',  dir: -1, speed: 3.8, count: 5, spacing: 108 } },
+      { type: 'road', lane: { kind: 'asteroid', dir:  1, speed: 4.0, count: 6, spacing: 92 } },
+      { type: 'road', lane: { kind: 'fighter',  dir: -1, speed: 4.1, count: 6, spacing: 90 } },
+      { type: 'road', lane: { kind: 'cruiser',  dir:  1, speed: 3.6, count: 5, spacing: 112 } },
+      { type: 'road', lane: { kind: 'asteroid', dir: -1, speed: 3.9, count: 6, spacing: 94 } },
+      { type: 'safe' },
+      { type: 'road', lane: { kind: 'fighter',  dir:  1, speed: 3.8, count: 6, spacing: 96 } },
+      { type: 'road', lane: { kind: 'cruiser',  dir: -1, speed: 3.4, count: 5, spacing: 114 } },
+      { type: 'road', lane: { kind: 'asteroid', dir:  1, speed: 3.7, count: 6, spacing: 98 } },
+    ],
+  },
+];
+
+// ═══════════════════════════════════════════════
+//  AUDIO (Web Audio API — simple tones)
+// ═══════════════════════════════════════════════
+let _actx = null;
+function actx() {
+  if (!_actx) {
+    try {
+      _actx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      return null;
+    }
+  }
+  return _actx;
+}
+function beep(freq, dur, type = 'square', vol = 0.08) {
+  try {
+    const c = actx();
+    if (!c) return;
+    const osc = c.createOscillator();
+    const g   = c.createGain();
+    osc.connect(g); g.connect(c.destination);
+    osc.type = type; osc.frequency.value = freq;
+    g.gain.setValueAtTime(vol, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+    osc.start(c.currentTime); osc.stop(c.currentTime + dur);
+  } catch (_) {}
+}
+function sfxMove()  { beep(440, 0.05, 'sine', 0.06); }
+function sfxGoal()  { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.12, 'sine', 0.1), i * 80)); }
+function sfxDeath() { beep(200, 0.4, 'sawtooth', 0.12); setTimeout(() => beep(150, 0.3, 'sawtooth', 0.1), 200); }
+function sfxWin()   { [523, 659, 784, 880, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, 'sine', 0.1), i * 100)); }
+function sfxComplete() { [659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => beep(f, 0.15, 'sine', 0.1), i * 90)); }
+
+// ═══════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+
+let state = 'menu';  // menu | playing | dead | levelcomplete | gameover | win
+let lvlIdx = 0, score = 0, lives = 3;
+let highScore = +localStorage.getItem('ufo_hi') || 0;
+
+let goals     = [];   // [{ filled: bool }]  length = NUM_GOALS
+let obstacles = [];   // array of obstacle objects
+let player    = {};
+let particles = [];
+let stars     = [];
+let timeLeft  = 60;
+let timerID   = null;
+let rafID     = null;
+let lastTs    = 0;
+let shakeDur  = 0, shakeAmt = 0;
+
+// ─── Generate stars once ───
+for (let i = 0; i < 90; i++) {
+  stars.push({
+    x: Math.random() * CW, y: Math.random() * CH,
+    r: Math.random() * 1.8 + 0.4,
+    a: Math.random() * 0.6 + 0.3,
+    sp: Math.random() * 0.025 + 0.006,
+    ph: Math.random() * Math.PI * 2,
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  OVERLAY HELPERS
+// ═══════════════════════════════════════════════
+const overlay = document.getElementById('overlay');
+const ovTitle = document.getElementById('ovTitle');
+const ovSub1  = document.getElementById('ovSub1');
+const ovSub2  = document.getElementById('ovSub2');
+const ovBtns  = document.getElementById('ovBtns');
+
+function showOverlay(title, titleColor, sub1, sub2, buttons) {
+  ovTitle.textContent  = title;
+  ovTitle.style.color  = titleColor;
+  ovSub1.textContent   = sub1;
+  ovSub2.textContent   = sub2;
+  ovBtns.innerHTML     = '';
+  buttons.forEach(([label, cls, fn]) => {
+    const b = document.createElement('button');
+    b.className = 'btn ' + cls;
+    b.textContent = label;
+    b.onclick = fn;
+    ovBtns.appendChild(b);
+  });
+  overlay.classList.remove('hidden');
+}
+function hideOverlay() { overlay.classList.add('hidden'); }
+
+// ═══════════════════════════════════════════════
+//  HUD
+// ═══════════════════════════════════════════════
+function updateHUD() {
+  document.getElementById('livesEl').textContent =
+    '❤️'.repeat(Math.max(0, lives)) + '🖤'.repeat(Math.max(0, 3 - lives));
+  document.getElementById('scoreEl').textContent = score;
+  document.getElementById('levelEl').textContent = `第 ${lvlIdx + 1} 关`;
+  const tel = document.getElementById('timerEl');
+  tel.textContent = `⏱ ${timeLeft}`;
+  tel.style.color = timeLeft <= 10 ? '#ff3333' : timeLeft <= 20 ? '#ffaa00' : '#ff9944';
+}
+
+// ═══════════════════════════════════════════════
+//  GENERATE OBSTACLES FOR A LANE
+// ═══════════════════════════════════════════════
+function makeLaneObstacles(rowIdx, lane) {
+  const { kind, dir, speed, count, spacing } = lane;
+  const w = OBS_W[kind], h = OBS_H[kind];
+  const period   = w + spacing;
+  const cyclePx  = count * period;
+  const obsList  = [];
+  for (let i = 0; i < count; i++) {
+    const x = dir > 0
+      ? -w / 2 - i * period          // start off the left edge
+      : CW + w / 2 + i * period;     // start off the right edge
+    obsList.push({
+      rowIdx, kind, dir, speed,
+      x, y: rowIdx * CELL_H + CELL_H / 2,
+      w, h, cyclePx,
+    });
+  }
+  return obsList;
+}
+
+// ═══════════════════════════════════════════════
+//  INIT / START LEVEL
+// ═══════════════════════════════════════════════
+function resetPlayer() {
+  player = {
+    col: Math.floor(COLS / 2),
+    row: ROWS - 1,
+    x: 0, y: 0,
+    tx: 0, ty: 0,
+    sx: 0, sy: 0,   // start of current move animation
+    moving: false,
+    mp: 0,          // move progress 0→1
+  };
+  snapPlayer();
+}
+
+function snapPlayer() {
+  player.x  = player.tx = colToX(player.col);
+  player.y  = player.ty = rowToY(player.row);
+  player.sx = player.x; player.sy = player.y;
+  player.moving = false;
+}
+
+function colToX(c) { return c * CELL_W + CELL_W / 2; }
+function rowToY(r) { return r * CELL_H + CELL_H / 2; }
+
+function startLevel() {
+  stopTimers();
+  hideOverlay();
+  state = 'playing';
+
+  const lv = LEVELS[lvlIdx];
+  goals     = Array.from({ length: NUM_GOALS }, () => ({ filled: false }));
+  obstacles = [];
+  lv.rows.forEach((row, ri) => {
+    if (row.type === 'road') {
+      obstacles.push(...makeLaneObstacles(ri, row.lane));
+    }
+  });
+  particles = [];
+  resetPlayer();
+  timeLeft = lv.timeLimit;
+  updateHUD();
+
+  timerID = setInterval(() => {
+    if (state !== 'playing') return;
+    timeLeft = Math.max(0, timeLeft - 1);
+    updateHUD();
+    if (timeLeft === 0) handleDeath();
+  }, 1000);
+
+  lastTs = performance.now();
+}
+
+function startGame() {
+  lvlIdx = 0; score = 0; lives = 3;
+  startLevel();
+}
+
+function nextLevel() {
+  lvlIdx++;
+  startLevel();
+}
+
+function stopTimer() {
+  clearInterval(timerID); timerID = null;
+}
+// Keep RAF always running so stars/bg animate on all screens.
+function stopTimers() { stopTimer(); }
+
+// ═══════════════════════════════════════════════
+//  DEATH / GAME OVER / LEVEL COMPLETE
+// ═══════════════════════════════════════════════
+function handleDeath() {
+  if (state !== 'playing') return;
+  state = 'dead';
+  lives--;
+  sfxDeath();
+  addParticles(player.x, player.y, '#ff4422', 22);
+  shakeDur = 600; shakeAmt = 7;
+  updateHUD();
+
+  if (lives <= 0) {
+    setTimeout(doGameOver, 900);
+  } else {
+    setTimeout(() => {
+      if (state !== 'dead') return;
+      state = 'playing';
+      resetPlayer();
+      timeLeft = LEVELS[lvlIdx].timeLimit;
+      updateHUD();
+    }, 900);
+  }
+}
+
+function doGameOver() {
+  stopTimers();
+  state = 'gameover';
+  if (score > highScore) { highScore = score; localStorage.setItem('ufo_hi', highScore); }
+  showOverlay(
+    '💥 游戏结束', '#ff4444',
+    `最终分数: ${score}`,
+    `最高分: ${highScore}`,
+    [
+      ['🔄 再次挑战', 'btn-blue', startGame],
+      ['📋 主菜单',   'btn-purple', showMenu],
+    ]
+  );
+}
+
+function doLevelComplete() {
+  stopTimers();
+  state = 'levelcomplete';
+  const timeBonus = timeLeft * 10;
+  const lifeBonus = lives * 100;
+  score += timeBonus + lifeBonus;
+  if (score > highScore) { highScore = score; localStorage.setItem('ufo_hi', highScore); }
+  sfxComplete();
+
+  if (lvlIdx >= LEVELS.length - 1) {
+    // Game won
+    state = 'win';
+    sfxWin();
+    showOverlay(
+      '🏆 游戏通关！', '#ffdd00',
+      `全部 ${LEVELS.length} 关卡完成！最终分数: ${score}`,
+      `最高分: ${highScore}`,
+      [
+        ['🔄 再次挑战', 'btn-blue', startGame],
+        ['📋 主菜单',   'btn-purple', showMenu],
+      ]
+    );
+  } else {
+    showOverlay(
+      '✨ 关卡完成！', '#00ff88',
+      `第 ${lvlIdx + 1} 关完成！  +${timeBonus}(时间) +${lifeBonus}(生命)`,
+      `当前分数: ${score}`,
+      [
+        [`➡️ 进入第 ${lvlIdx + 2} 关`, 'btn-blue', nextLevel],
+        ['📋 主菜单', 'btn-purple', showMenu],
+      ]
+    );
+  }
+}
+
+function showMenu() {
+  stopTimers();
+  state = 'menu';
+  showOverlay(
+    '🛸 UFO Cross', '#00ccff',
+    '飞碟过关 — 引导你的飞碟穿越危险的宇宙航道！',
+    '⬆️⬇️⬅️➡️ 或 WASD 移动  |  闯过 5 个关卡',
+    [
+      ['🚀 开始游戏', 'btn-blue', startGame],
+    ]
+  );
+}
+
+// ═══════════════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════════════
+function tryMove(dc, dr) {
+  if (state !== 'playing') return;
+  if (player.moving) return;     // one step at a time
+
+  const nc = player.col + dc;
+  const nr = player.row + dr;
+  if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
+
+  sfxMove();
+  player.sx  = player.x;  player.sy  = player.y;
+  player.col = nc;         player.row = nr;
+  player.tx  = colToX(nc); player.ty  = rowToY(nr);
+  player.moving = true;   player.mp  = 0;
+
+  // Score for advancing upward
+  if (dr < 0) { score += 10; updateHUD(); }
+
+  // Goal check happens in update() after animation
+}
+
+document.addEventListener('keydown', e => {
+  const map = { ArrowUp:'u', ArrowDown:'d', ArrowLeft:'l', ArrowRight:'r',
+                w:'u', s:'d', a:'l', d:'r',
+                W:'u', S:'d', A:'l', D:'r' };
+  const dir = map[e.key];
+  if (!dir) return;
+  e.preventDefault();
+  if (dir === 'u') tryMove( 0, -1);
+  if (dir === 'd') tryMove( 0,  1);
+  if (dir === 'l') tryMove(-1,  0);
+  if (dir === 'r') tryMove( 1,  0);
+});
+
+document.getElementById('dpUp').addEventListener('click',    () => tryMove( 0,-1));
+document.getElementById('dpDown').addEventListener('click',  () => tryMove( 0, 1));
+document.getElementById('dpLeft').addEventListener('click',  () => tryMove(-1, 0));
+document.getElementById('dpRight').addEventListener('click', () => tryMove( 1, 0));
+
+// Touch-swipe on canvas
+let _tx0 = 0, _ty0 = 0;
+canvas.addEventListener('touchstart', e => {
+  _tx0 = e.touches[0].clientX; _ty0 = e.touches[0].clientY; e.preventDefault();
+}, { passive: false });
+canvas.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - _tx0;
+  const dy = e.changedTouches[0].clientY - _ty0;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) > SWIPE_THRESHOLD) {
+    if (Math.abs(dx) > Math.abs(dy)) tryMove(dx > 0 ? 1 : -1, 0);
+    else                              tryMove(0, dy > 0 ? 1 : -1);
+  }
+  e.preventDefault();
+}, { passive: false });
+
+// ═══════════════════════════════════════════════
+//  GOAL CHECK
+// ═══════════════════════════════════════════════
+function checkGoal() {
+  if (player.row !== 0) return;
+  const gi = Math.floor(player.x / GOAL_W);
+  if (gi < 0 || gi >= NUM_GOALS) return;
+  if (goals[gi].filled) { resetPlayer(); return; }
+
+  goals[gi].filled = true;
+  score += 100;
+  sfxGoal();
+  addParticles(player.x, player.y, '#00ffaa', 24);
+  addParticles(player.x, player.y, '#ffffff', 10);
+  updateHUD();
+  resetPlayer();
+  timeLeft = LEVELS[lvlIdx].timeLimit;
+  updateHUD();
+
+  if (goals.every(g => g.filled)) doLevelComplete();
+}
+
+// ═══════════════════════════════════════════════
+//  PARTICLES
+// ═══════════════════════════════════════════════
+function addParticles(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = Math.random() * 3.5 + 0.8;
+    particles.push({
+      x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      color, r: Math.random() * 4 + 1.5,
+      life: 1, decay: 0.025 + Math.random() * 0.025,
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  COLLISION
+// ═══════════════════════════════════════════════
+function checkCollision() {
+  if (state !== 'playing') return;
+  const px = player.x, py = player.y, pr = PLAYER_RADIUS;
+  for (const o of obstacles) {
+    if (o.rowIdx !== player.row) continue;
+    const hw = o.w * OBS_HITBOX_SCALE, hh = o.h * OBS_HITBOX_SCALE;
+    if (px + pr > o.x - hw && px - pr < o.x + hw &&
+        py + pr > o.y - hh && py - pr < o.y + hh) {
+      handleDeath(); return;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  UPDATE
+// ═══════════════════════════════════════════════
+function easeOut(t) { return 1 - (1 - t) * (1 - t); }
+
+function update(dt) {
+  // Screen shake
+  if (shakeDur > 0) shakeDur -= dt;
+
+  // Stars twinkle
+  stars.forEach(s => { s.ph += s.sp; });
+
+  // Particles
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.06;
+    p.life -= p.decay;
+  });
+  particles = particles.filter(p => p.life > 0);
+
+  // Obstacles
+  obstacles.forEach(o => {
+    o.x += o.speed * o.dir;
+    if (o.dir > 0 && o.x - o.w / 2 > CW) o.x -= o.cyclePx;
+    if (o.dir < 0 && o.x + o.w / 2 < 0)  o.x += o.cyclePx;
+    o.y = o.rowIdx * CELL_H + CELL_H / 2;  // keep y snapped
+  });
+
+  // Player movement animation
+  if (player.moving) {
+    player.mp = Math.min(1, player.mp + dt / 90);
+    const t   = easeOut(player.mp);
+    player.x  = player.sx + (player.tx - player.sx) * t;
+    player.y  = player.sy + (player.ty - player.sy) * t;
+    if (player.mp >= 1) {
+      player.x = player.tx; player.y = player.ty;
+      player.moving = false;
+      checkGoal();
+    }
+  }
+
+  // Collision check every frame (only while alive and on road)
+  if (state === 'playing') {
+    const rowType = LEVELS[lvlIdx].rows[player.row]?.type;
+    if (rowType === 'road') checkCollision();
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════
+function render() {
+  ctx.save();
+
+  // Screen shake
+  if (shakeDur > 0 && shakeAmt > 0) {
+    const s = shakeAmt * (shakeDur / 600);
+    ctx.translate(
+      (Math.random() * 2 - 1) * s,
+      (Math.random() * 2 - 1) * s
+    );
+  }
+
+  // Clear
+  ctx.clearRect(-20, -20, CW + 40, CH + 40);
+  drawBg();
+  drawLanes();
+  drawGoals();
+  drawObstacles();
+  drawPlayer();
+  drawParticles();
+
+  ctx.restore();
+}
+
+// ── Background ─────────────────────────────────
+function drawBg() {
+  const g = ctx.createLinearGradient(0, 0, 0, CH);
+  g.addColorStop(0,   '#010110');
+  g.addColorStop(0.5, '#03061a');
+  g.addColorStop(1,   '#060a24');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, CW, CH);
+
+  stars.forEach(s => {
+    const a = s.a * (0.5 + 0.5 * Math.sin(s.ph));
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+// ── Lane backgrounds ───────────────────────────
+function drawLanes() {
+  const lv = LEVELS[lvlIdx];
+  lv.rows.forEach((row, ri) => {
+    const y = ri * CELL_H;
+    if (row.type === 'safe') {
+      ctx.fillStyle = 'rgba(0, 55, 75, 0.48)';
+      ctx.fillRect(0, y, CW, CELL_H);
+      ctx.strokeStyle = 'rgba(0, 180, 255, 0.10)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0, y, CW, CELL_H);
+    } else if (row.type === 'road') {
+      ctx.fillStyle = 'rgba(42, 8, 8, 0.55)';
+      ctx.fillRect(0, y, CW, CELL_H);
+      ctx.strokeStyle = 'rgba(255, 80, 0, 0.12)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, y);       ctx.lineTo(CW, y);       ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, y + CELL_H); ctx.lineTo(CW, y + CELL_H); ctx.stroke();
+    }
+  });
+}
+
+// ── Goals ──────────────────────────────────────
+function drawGoals() {
+  for (let i = 0; i < NUM_GOALS; i++) {
+    const x = i * GOAL_W, y = 0;
+    if (goals[i]?.filled) {
+      ctx.fillStyle = 'rgba(0, 180, 90, 0.55)';
+      ctx.fillRect(x + 2, y + 2, GOAL_W - 4, CELL_H - 4);
+      // glow
+      ctx.shadowColor = '#00ff88'; ctx.shadowBlur = 14;
+      ctx.font = '26px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('🛸', x + GOAL_W / 2, y + CELL_H / 2);
+      ctx.shadowBlur = 0;
+    } else {
+      ctx.fillStyle = 'rgba(0, 40, 68, 0.55)';
+      ctx.fillRect(x + 2, y + 2, GOAL_W - 4, CELL_H - 4);
+      ctx.strokeStyle = 'rgba(0, 140, 255, 0.55)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 5, y + 5, GOAL_W - 10, CELL_H - 10);
+      ctx.font = '20px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = '#aaccff';
+      ctx.fillText('🌟', x + GOAL_W / 2, y + CELL_H / 2);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+// ── Obstacles ──────────────────────────────────
+function drawObstacles() {
+  obstacles.forEach(o => {
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    if (o.dir < 0) ctx.scale(-1, 1);   // flip for left-movers
+    switch (o.kind) {
+      case 'fighter':  drawFighter(o.w, o.h);  break;
+      case 'cruiser':  drawCruiser(o.w, o.h);  break;
+      case 'asteroid': drawAsteroid(o.w, o.h); break;
+    }
+    ctx.restore();
+  });
+}
+
+function drawFighter(w, h) {
+  // Body
+  ctx.fillStyle = '#dd3311';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, w / 2, h / 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Wings
+  ctx.fillStyle = '#991100';
+  ctx.beginPath(); ctx.moveTo(-w * 0.15, 0); ctx.lineTo(-w * 0.48, -h * 0.55); ctx.lineTo( w * 0.2, 0); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-w * 0.15, 0); ctx.lineTo(-w * 0.48,  h * 0.55); ctx.lineTo( w * 0.2, 0); ctx.fill();
+  // Cockpit
+  ctx.fillStyle = '#ffccaa';
+  ctx.beginPath(); ctx.ellipse(w * 0.18, 0, w * 0.15, h * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+  // Engine glow
+  ctx.fillStyle = '#ff8800';
+  ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 7;
+  ctx.beginPath(); ctx.ellipse(-w * 0.45, 0, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+function drawCruiser(w, h) {
+  // Hull
+  ctx.fillStyle = '#3366dd';
+  ctx.beginPath();
+  ctx.moveTo( w * 0.5, 0);
+  ctx.lineTo( w * 0.2, -h * 0.5);
+  ctx.lineTo(-w * 0.5, -h * 0.35);
+  ctx.lineTo(-w * 0.5,  h * 0.35);
+  ctx.lineTo( w * 0.2,  h * 0.5);
+  ctx.closePath(); ctx.fill();
+  // Fins
+  ctx.fillStyle = '#224499';
+  ctx.beginPath(); ctx.moveTo(-w*0.05,-h*0.35); ctx.lineTo(-w*0.32,-h*0.58); ctx.lineTo(-w*0.5,-h*0.35); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-w*0.05, h*0.35); ctx.lineTo(-w*0.32, h*0.58); ctx.lineTo(-w*0.5, h*0.35); ctx.fill();
+  // Window
+  ctx.fillStyle = '#aaddff';
+  ctx.beginPath(); ctx.ellipse(w * 0.15, 0, w * 0.13, h * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+  // Engines
+  ctx.fillStyle = '#0099ff'; ctx.shadowColor = '#0099ff'; ctx.shadowBlur = 8;
+  ctx.beginPath(); ctx.ellipse(-w*0.46, -h*0.18, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-w*0.46,  h*0.18, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+function drawAsteroid(w, h) {
+  const r = w / 2;
+  ctx.fillStyle = '#887755';
+  ctx.beginPath();
+  const pts = 9;
+  for (let i = 0; i < pts; i++) {
+    const a  = (i / pts) * Math.PI * 2;
+    const rr = r * (0.68 + 0.32 * Math.sin(i * 3.5 + 1.2));
+    i === 0
+      ? ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr)
+      : ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#aa9966';
+  ctx.beginPath(); ctx.ellipse(-r*0.22, -r*0.22, r*0.28, r*0.18, -0.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#665533';
+  ctx.beginPath(); ctx.ellipse( r*0.18,  r*0.12, r*0.18, r*0.12,  0.7, 0, Math.PI*2); ctx.fill();
+}
+
+// ── Player UFO ─────────────────────────────────
+let _ufoPulse = 0;
+function drawPlayer() {
+  if (state === 'dead') return;    // hide while dying
+
+  _ufoPulse += 0.06;
+  const x = player.x, y = player.y;
+
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Outer glow
+  ctx.shadowColor = '#00ffcc'; ctx.shadowBlur = 18 + 6 * Math.sin(_ufoPulse);
+
+  // Saucer base disc
+  const bGrad = ctx.createRadialGradient(-4, 2, 2, 0, 4, 26);
+  bGrad.addColorStop(0, '#ddeeff');
+  bGrad.addColorStop(1, '#7799cc');
+  ctx.fillStyle = bGrad;
+  ctx.beginPath(); ctx.ellipse(0, 5, 24, 9, 0, 0, Math.PI * 2); ctx.fill();
+
+  // Top dome
+  const dGrad = ctx.createRadialGradient(-4, -6, 2, 0, -3, 16);
+  dGrad.addColorStop(0, '#bbddff');
+  dGrad.addColorStop(1, '#2255aa');
+  ctx.fillStyle = dGrad;
+  ctx.beginPath(); ctx.ellipse(0, -1, 15, 12, 0, -Math.PI, 0); ctx.fill();
+
+  // Spinning lights
+  const colors = ['#ff2222','#ffff00','#22ff44','#22ffff','#ff22ff'];
+  ctx.shadowBlur = 0;
+  for (let i = 0; i < 5; i++) {
+    const a  = (i / 5) * Math.PI * 2 + _ufoPulse * 0.9;
+    const lx = Math.cos(a) * 17;
+    const ly = Math.sin(a) * 4 + 5;
+    ctx.fillStyle  = colors[i];
+    ctx.shadowColor = colors[i]; ctx.shadowBlur = 5;
+    ctx.beginPath(); ctx.arc(lx, ly, 2.8, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+}
+
+// ── Particles ──────────────────────────────────
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+// ═══════════════════════════════════════════════
+//  MAIN LOOP
+// ═══════════════════════════════════════════════
+function loop(ts) {
+  const dt = Math.min(ts - lastTs, 50);
+  lastTs = ts;
+  update(dt);   // always run so stars/particles animate on all screens
+  render();
+  rafID = requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════
+showMenu();
+rafID = requestAnimationFrame(loop);
+</script>
+</body>
+</html>
