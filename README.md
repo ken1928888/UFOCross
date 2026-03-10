@@ -1,43 +1,77 @@
-# 🛸 UFO Cross — 飞碟过关
 
-A browser-based HTML5 arcade game inspired by the classic *Frogger*.
-Guide your UFO across deadly lanes of alien spacecraft and asteroids to reach the safety zones at the top!
 
-## ▶ How to Play
+*青蛙过河*.
+引导你的不明飞行物穿越致命的外星飞船和小行星通道，到达顶部的安全区域！
 
-Open `index.html` in any modern browser — no build step, no dependencies.
+## ▶ 如何玩
 
-| Control | Action |
+打开 `index.html` 在任何现代浏览器中 — 无需构建步骤，无需依赖。
+
+| 控制 | 操作 |
 |---------|--------|
-| `↑ ↓ ← →` / `W A S D` | Move the UFO one step |
-| Swipe (mobile) | Move the UFO |
-| On-screen D-pad (mobile) | Move the UFO |
+| `↑ ↓ ← →` / `W A S D` | 移动飞碟一步 |
+| 滑动（移动设备） | 移动飞碟 |
+| 屏幕上的方向键（移动设备） | 移动不明飞行物 |
 
-## 🎯 Objective
+##🎯 目标
 
-- Reach all **5 goal pads** at the top of the screen to complete the level.
-- Avoid colliding with alien fighters, space cruisers, and asteroids.
-- Beat the countdown timer before time runs out.
-- You have **3 lives** — lose them all and it's game over.
+- 到达所有 **5个目标垫** 在屏幕顶部以完成关卡。
+- 避免与外星战斗机、太空巡洋舰和小行星相撞。
+- 在时间耗尽之前击败倒计时器。
+- 你有 **3条命** — 失去所有生命游戏结束。
 
-## 🗺 Levels
+## 🗺 等级
 
-| Level | Name | Description |
+| 等级 | 名称 | 描述 |
 |-------|------|-------------|
-| 1 | 初探宇宙 | Slow ships — a gentle introduction |
-| 2 | 星际加速 | Speeds increase, more obstacles |
-| 3 | 小行星带 | Dense asteroid fields — tight gaps |
-| 4 | 超高速穿越 | Fast lanes across almost every row |
-| 5 | 终极决战 | Maximum speed, maximum density |
+| 1 | 初探宇宙 | 慢船——温柔的介绍 |
+| 2 | 星际加速 | 速度加快，更多障碍 |
+| 3 | 小行星带 | 密集的小行星群 — 紧密的间隙 |
+| 4 | 超高速穿越 | 每一行几乎都有快速通道 |
+| 5 | 终极决战 | 最高速度，最大密度 |
 
-## ✨ Features
+##✨ 功能
 
-- Animated space background with twinkling stars
-- Three obstacle types: **Alien Fighter**, **Space Cruiser**, **Asteroid**
-- UFO with spinning coloured lights and glow effects
-- Particle explosion effects on death and goal capture
-- Screen shake on collision
-- Score system with high-score saved to `localStorage`
-- Time bonus + life bonus on level completion
-- Web Audio API sound effects (no external files required)
-- Fully responsive — works on desktop and mobile
+- 动画太空背景与闪烁的星星
+- 三种障碍类型: **外星战士**, **太空巡洋舰**, **小行星**
+- 有旋转彩色灯光和发光效果的不明飞行物
+- 死亡和目标捕获的粒子爆炸效果
+- 碰撞时屏幕震动
+- 得分系统，最高分保存到 `localStorage`
+- 完成关卡后时间奖励+生命奖励
+- Web Audio API 音效（不需要外部文件）
+- 完全响应式 — 在桌面和移动设备上都能使用
+UFO Cross — 飞碟过关：时空废土的地球救赎
+一个基于浏览器的2D HTML5 街机游戏，灵感源于经典游戏《Frogger》。在核战毁灭、时空错乱的废土地球上，你将驾驶传说中的 UFO，穿越层层危机，为人类文明找回和平与希望。
+🌍 世界观
+地球因 AI 竞争、资源滥用与最终核战而破碎。月球背面的外星守护者耗尽力量将其勉强缝合，却造就了一个时空错乱的废土世界：残存人类、变异生物、半尸人与异能者挣扎求生，同时还要面对觊觎地球的外星势力。守护者们将最后的希望托付给人类 —— 找到散落在世界各地的 UFO，修复并驾驶它们穿越时空，像修复代码漏洞一样，从根源上修正这个错乱的世界。
+🎮 核心玩法
+宅 大本营：幸存者的避风港
+选择遍布全球的幸存者基地，与外星守护者对话接取任务。
+在工坊整理物资、装配装备，升级你的飞船，管理收集的英雄卡牌。
+🌟 地面冒险：废土生存
+深入废土，与变异怪物、AI 守卫和邪恶外星人展开 2D 即时战斗。
+搜集物资与核心拼图，集齐 9 张飞船定位器拼图后，定位并夺回被侵占的 UFO。
+通过传送站，在破损地球的 2D 地图上穿梭于各个区域。
+🚀 飞船升空：星际与时空探索
+修复并升级飞船至 10 层：
+1~9 层：在太空中搜集资源、清理垃圾、对抗空中怪物。
+第 10 层：解锁时空穿越，前往地球各历史时期，完成 “修复时空 BUG” 挑战，收集英雄卡牌。
+卡牌可在战斗中召唤来自不同时空的英雄助战。
+⚔️ 斗兽场：绝境荣耀
+冒险中被俘后，将被送入 10 层星际斗兽场。
+每击败一层 BOSS，可临时返回基地配置装备，但无法传送或启动飞船。
+击败第 10 层终极 BOSS，获得 “终极荣誉勋章”，解锁自由，重返初始基地。
+🎮 如何玩
+打开 index.html，在任何现代浏览器中即可开始冒险 —— 无需构建步骤，无需依赖。
+表格
+操作	行动
+↑ ↓ ← → / W A S D 移动 UFO / 角色
+滑动 / 虚拟方向键（移动设备）	操控 UFO / 角色
+鼠标 / 触屏点击	交互 NPC、释放技能
+✨ 游戏特色
+宏大 2D 废土世界观：融合后启示录、科幻与时空穿越元素。
+多模块递进玩法：地面生存 → 星际探索 → 时空穿越 → 斗兽场挑战。
+卡牌英雄系统：收集时空英雄，策略召唤，丰富战斗体验。
+全平台支持：完美适配桌面与移动设备。
+准备好驾驶 UFO，踏上修复世界的冒险了吗？人类的未来，掌握在你的手中！
